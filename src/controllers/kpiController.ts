@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { obtenirKpis } from '../services/kpiService';
 
+// GET /api/kpis (admin uniquement, voir routes/kpiRoutes.ts) -- renvoie
+// les 5 blocs (synthese, parStatut, parPriorite, enRetard, chargeUtilisateurs)
+// à plat au même niveau que `status`, pas imbriqués sous une clé "kpis".
 export async function obtenirKpisController(req: Request, res: Response) {
   try {
     const kpis = await obtenirKpis();

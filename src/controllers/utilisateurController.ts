@@ -2,6 +2,10 @@ import { Request, Response } from 'express';
 import * as utilisateurService from '../services/utilisateurService';
 import { estErreurMetier } from '../utils/errors';
 
+// Toutes les routes de ce controller sont réservées à l'admin (voir
+// routes/utilisateurRoutes.ts, `router.use(authentifier, autoriser('admin'))`
+// posé une seule fois pour tout le routeur).
+
 export async function listerController(req: Request, res: Response) {
   try {
     const utilisateurs = await utilisateurService.listerUtilisateurs();
@@ -12,6 +16,8 @@ export async function listerController(req: Request, res: Response) {
   }
 }
 
+// Crée uniquement des comptes de rôle 'utilisateur' -- voir le commentaire
+// dans services/utilisateurService.creerUtilisateur pour le pourquoi.
 export async function creerController(req: Request, res: Response) {
   const { nom, prenom, email, motDePasse } = req.body;
   if (!nom || !prenom || !email || !motDePasse) {
@@ -35,6 +41,8 @@ export async function creerController(req: Request, res: Response) {
   }
 }
 
+// Seul levier de gestion du cycle de vie d'un compte : pas de suppression
+// physique, uniquement actif / bloque / desactive.
 export async function changerStatutController(req: Request, res: Response) {
   const id = Number(req.params.id);
   const { statut } = req.body;

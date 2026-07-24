@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { changerMotDePasse } from '../services/compteService';
 import { estErreurMetier } from '../utils/errors';
 
+// PATCH /api/auth/mot-de-passe -- accessible à n'importe quel utilisateur
+// connecté (admin ou standard), toujours pour SON PROPRE compte
+// (req.user!.id, jamais un id passé par le client).
 export async function changerMotDePasseController(req: Request, res: Response) {
   const { ancienMotDePasse, nouveauMotDePasse } = req.body;
 

@@ -4,6 +4,7 @@ import { authentifier, autoriser } from '../middlewares/authMiddleware';
 
 const router = Router();
 
+// Admin uniquement.
 router.get('/', authentifier, autoriser('admin'), obtenirKpisController);
 
 export default router;

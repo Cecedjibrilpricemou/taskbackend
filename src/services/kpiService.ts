@@ -15,6 +15,10 @@ export interface KpisComplets {
   chargeUtilisateurs: KpiChargeUtilisateur[];
 }
 
+// Les 5 vues KPI sont globales (pas de filtre par utilisateur courant),
+// donc de simples SELECT sur des vues suffisent -- pas besoin de
+// procédure stockée ici. Récupérées en parallèle via Promise.all puisque
+// les 5 requêtes sont indépendantes.
 export async function obtenirKpis(): Promise<KpisComplets> {
   const [
     [syntheseRows],
@@ -31,6 +35,7 @@ export async function obtenirKpis(): Promise<KpisComplets> {
   ]);
 
   return {
+    // v_kpi_synthese renvoie toujours exactement une ligne (agrégats globaux).
     synthese: (syntheseRows as KpiSynthese[])[0],
     parStatut: parStatut as KpiParStatut[],
     parPriorite: parPriorite as KpiParPriorite[],

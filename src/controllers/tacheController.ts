@@ -11,9 +11,18 @@ import {
 import { estErreurMetier } from '../utils/errors';
 import { StatutTache, PrioriteTache } from '../types/entities';
 
+// Ce fichier regroupe deux familles de routes avec des permissions
+// différentes (voir routes/tacheRoutes.ts pour le détail des middlewares) :
+// - creerTacheController / listerTachesController / modifierTacheController /
+//   attribuerTacheController / supprimerTacheController -> admin uniquement.
+// - listerMesTachesController / modifierStatutTacheController -> utilisateur
+//   standard uniquement (jamais l'admin, même s'il était assigné par erreur).
+
 const STATUTS_VALIDES: StatutTache[] = ['a_faire', 'en_cours', 'terminee'];
 const PRIORITES_VALIDES: PrioriteTache[] = ['basse', 'moyenne', 'haute'];
 
+// Centralise la traduction ErreurMetier -> réponse HTTP pour tous les
+// controllers de ce fichier (évite de répéter le même try/catch).
 function envoyerErreur(res: Response, err: unknown) {
   if (estErreurMetier(err)) {
     res.status(err.statusCode).json({ status: 'erreur', message: err.message });
@@ -43,6 +52,9 @@ export async function creerTacheController(req: Request, res: Response) {
   }
 }
 
+// Liste globale (admin), avec filtres optionnels ?statut= et ?priorite=
+// en query string. Ne filtre pas encore par utilisateur assigné ni par
+// recherche texte (voir README pour l'état des lieux des limitations connues).
 export async function listerTachesController(req: Request, res: Response) {
   const statut = req.query.statut as string | undefined;
   const priorite = req.query.priorite as string | undefined;
@@ -67,6 +79,8 @@ export async function listerTachesController(req: Request, res: Response) {
   }
 }
 
+// Remplace titre/description/priorité/échéance -- jamais le statut (voir
+// modifierStatutTacheController plus bas, réservé aux utilisateurs assignés).
 export async function modifierTacheController(req: Request, res: Response) {
   const tacheId = Number(req.params.id);
   const { titre, description, priorite, dateEcheance } = req.body;
@@ -92,6 +106,7 @@ export async function modifierTacheController(req: Request, res: Response) {
   }
 }
 
+// Remplace la liste complète des utilisateurs assignés (pas un ajout).
 export async function attribuerTacheController(req: Request, res: Response) {
   const tacheId = Number(req.params.id);
   const { utilisateurIds } = req.body;
@@ -113,6 +128,7 @@ export async function attribuerTacheController(req: Request, res: Response) {
   }
 }
 
+// Suppression logique -- voir services/tacheService.supprimerTache.
 export async function supprimerTacheController(req: Request, res: Response) {
   const tacheId = Number(req.params.id);
 
@@ -129,6 +145,7 @@ export async function supprimerTacheController(req: Request, res: Response) {
   }
 }
 
+// "Mes tâches" (utilisateur standard) : tâches attribuées à req.user!.id.
 export async function listerMesTachesController(req: Request, res: Response) {
   try {
     const taches = await listerMesTaches(req.user!.id);
@@ -138,6 +155,9 @@ export async function listerMesTachesController(req: Request, res: Response) {
   }
 }
 
+// (utilisateur standard) Change UNIQUEMENT le statut d'une tâche qui lui
+// est assignée. Le service relaie en 403 le cas où l'utilisateur n'est
+// pas assigné à la tâche (vérifié côté procédure stockée).
 export async function modifierStatutTacheController(req: Request, res: Response) {
   const tacheId = Number(req.params.id);
   const { statut } = req.body;

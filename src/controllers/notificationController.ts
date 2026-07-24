@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { listerNotifications, marquerNotificationLue } from '../services/notificationService';
 import { estErreurMetier } from '../utils/errors';
 
+// Notifications de l'utilisateur connecté (n'importe quel rôle).
 export async function listerNotificationsController(req: Request, res: Response) {
   try {
     const notifications = await listerNotifications(req.user!.id);
@@ -21,6 +22,8 @@ export async function marquerNotificationLueController(req: Request, res: Respon
   }
 
   try {
+    // Le service vérifie que la notification appartient bien à
+    // req.user!.id -- voir services/notificationService.ts.
     await marquerNotificationLue(notificationId, req.user!.id);
     res.json({ status: 'ok' });
   } catch (err) {
