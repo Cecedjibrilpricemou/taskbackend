@@ -13,17 +13,16 @@ declare global {
   }
 }
 
-// Vérifie le header `Authorization: Bearer <token>` et remplit req.user.
-// À poser sur toute route qui nécessite d'être connecté, avant `autoriser`
-// si un contrôle de rôle est aussi nécessaire.
+// Vérifie le cookie httpOnly `token` et remplit req.user. À poser sur
+// toute route qui nécessite d'être connecté, avant `autoriser` si un
+// contrôle de rôle est aussi nécessaire.
 export function authentifier(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const token = req.cookies?.token;
+  if (!token) {
     res.status(401).json({ status: 'erreur', message: 'Token manquant' });
     return;
   }
 
-  const token = authHeader.substring(7);
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET as string) as AuthPayload;
     req.user = payload;

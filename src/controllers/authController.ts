@@ -1,6 +1,20 @@
 import { Request, Response } from 'express';
 import { login, AuthError } from '../services/authService';
 import pool from '../config/db';
+import { dureeEnMs } from '../utils/duree';
+
+// Options du cookie JWT, partagées entre la pose (login) et la suppression
+// (logout) -- clearCookie ne fonctionne que si les options (hors maxAge/
+// expires) correspondent exactement à celles utilisées lors de la pose.
+// `secure` est conditionnel à l'environnement : mis en dur à true, le
+// cookie ne serait jamais envoyé en HTTP local (XAMPP/localhost, pas de
+// HTTPS), et l'authentification semblerait cassée sans aucun message
+// d'erreur clair côté client.
+const OPTIONS_COOKIE_TOKEN = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+};
 
 // Toutes les réponses de l'API suivent l'enveloppe { status: 'ok' | 'erreur', ... }.
 export async function loginController(req: Request, res: Response) {
@@ -12,8 +26,12 @@ export async function loginController(req: Request, res: Response) {
   }
 
   try {
-    const resultat = await login(email, motDePasse);
-    res.json({ status: 'ok', ...resultat });
+    const { token, utilisateur } = await login(email, motDePasse);
+    res.cookie('token', token, {
+      ...OPTIONS_COOKIE_TOKEN,
+      maxAge: dureeEnMs(process.env.JWT_EXPIRES_IN || '8h'),
+    });
+    res.json({ status: 'ok', utilisateur });
   } catch (err) {
     // Voir services/authService.ts pour le pourquoi de cet `instanceof`
     // (ça fonctionne ici, mais ce n'est pas le pattern recommandé ailleurs).
@@ -24,6 +42,14 @@ export async function loginController(req: Request, res: Response) {
     console.error(err);
     res.status(500).json({ status: 'erreur', message: 'Erreur serveur' });
   }
+}
+
+// Le frontend ne peut pas supprimer lui-même un cookie httpOnly (invisible
+// en JavaScript) -- cette route est donc indispensable, pas un simple
+// confort.
+export function logoutController(req: Request, res: Response) {
+  res.clearCookie('token', OPTIONS_COOKIE_TOKEN);
+  res.json({ status: 'ok' });
 }
 
 // Profil de l'utilisateur actuellement connecté (déduit du JWT, pas d'un

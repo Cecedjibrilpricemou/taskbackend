@@ -6,6 +6,7 @@ dotenv.config();
 
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import pool from './config/db';
 import authRoutes from './routes/authRoutes';
 import compteRoutes from './routes/compteRoutes';
@@ -15,8 +16,12 @@ import kpiRoutes from './routes/kpiRoutes';
 import utilisateurRoutes from './routes/utilisateurRoutes';
 
 const app = express();
-app.use(cors());
+// origin doit être une valeur exacte : un cookie posé avec `credentials`
+// ne peut pas fonctionner avec un wildcard ('*') -- règle imposée par le
+// navigateur, pas une option côté serveur.
+app.use(cors({ origin: 'http://localhost:4200', credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 
 // Ping simple, sans dépendance à la base -- utile pour vérifier que le
