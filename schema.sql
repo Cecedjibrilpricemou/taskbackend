@@ -312,11 +312,21 @@ BEGIN
   -- Atomicite : si un identifiant est invalide en cours de boucle, tout est
   -- annule (y compris le desassignement du debut) plutot que de laisser un
   -- etat partiel (ex: un utilisateur assigne, un autre rejete).
+  -- La table temporaire doit aussi etre nettoyee ici : la connexion vient
+  -- d'un pool reutilise, une table laissee derriere ferait echouer le
+  -- CREATE TEMPORARY TABLE du prochain appel sur cette meme connexion.
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
     ROLLBACK;
+    DROP TEMPORARY TABLE IF EXISTS tmp_notif_ids;
     RESIGNAL;
   END;
+
+  -- Trace les notifications reellement inserees dans cet appel, pour
+  -- pouvoir les renvoyer au code Node (qui s'en sert pour l'emission
+  -- WebSocket temps reel) sans dupliquer la logique de detection des
+  -- "nouveaux assignes" deja geree par la boucle ci-dessous.
+  CREATE TEMPORARY TABLE tmp_notif_ids (id INT PRIMARY KEY);
 
   START TRANSACTION;
 
@@ -352,6 +362,7 @@ BEGIN
         INSERT INTO notifications (utilisateur_id, tache_id, message)
         VALUES (CAST(v_id_courant AS UNSIGNED), p_tache_id,
                 CONCAT('Une nouvelle tâche vous a été attribuée : ', v_titre));
+        INSERT INTO tmp_notif_ids VALUES (LAST_INSERT_ID());
       END IF;
     END IF;
   END WHILE boucle;
@@ -360,6 +371,14 @@ BEGIN
   VALUES (p_tache_id, p_effectue_par, 'attribution', CONCAT('Utilisateurs assignes : ', p_utilisateur_ids));
 
   COMMIT;
+
+  -- Renvoyee au code Node (rows[0] du CALL, meme convention que
+  -- sp_lister_taches_utilisateur) pour l'emission WebSocket ciblee.
+  SELECT n.id, n.utilisateur_id, n.tache_id, n.message, n.lue, n.date_creation
+  FROM notifications n
+  JOIN tmp_notif_ids t ON t.id = n.id;
+
+  DROP TEMPORARY TABLE tmp_notif_ids;
 END $$
 
 -- Lister les notifications d'un utilisateur (les plus récentes d'abord)

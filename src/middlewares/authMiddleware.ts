@@ -13,6 +13,13 @@ declare global {
   }
 }
 
+// Partagée avec le handshake WebSocket (src/realtime/socket.ts), qui vérifie
+// le même cookie httpOnly `token` mais en dehors du pipeline de middlewares
+// Express -- d'où l'extraction, pour ne pas dupliquer jwt.verify(...).
+export function verifierJwt(token: string): AuthPayload {
+  return jwt.verify(token, process.env.JWT_SECRET as string) as AuthPayload;
+}
+
 // Vérifie le cookie httpOnly `token` et remplit req.user. À poser sur
 // toute route qui nécessite d'être connecté, avant `autoriser` si un
 // contrôle de rôle est aussi nécessaire.
@@ -24,8 +31,7 @@ export function authentifier(req: Request, res: Response, next: NextFunction) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as AuthPayload;
-    req.user = payload;
+    req.user = verifierJwt(token);
     next();
   } catch (err) {
     res.status(401).json({ status: 'erreur', message: 'Token invalide ou expiré' });

@@ -14,6 +14,7 @@ import tacheRoutes from './routes/tacheRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import kpiRoutes from './routes/kpiRoutes';
 import utilisateurRoutes from './routes/utilisateurRoutes';
+import { attacherSocketIO } from './realtime/socket';
 
 const app = express();
 // origin doit être une valeur exacte : un cookie posé avec `credentials`
@@ -54,4 +55,5 @@ app.use('/api/kpis', kpiRoutes);
 app.use('/api/utilisateurs', utilisateurRoutes);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Serveur demarre sur le port ${PORT}`));
+const server = app.listen(PORT, () => console.log(`Serveur demarre sur le port ${PORT}`));
+attacherSocketIO(server);

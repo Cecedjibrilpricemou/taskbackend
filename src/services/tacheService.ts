@@ -1,6 +1,19 @@
 import pool from '../config/db';
 import { ErreurMetier, relancerErreurSignalMysql, estErreurContrainteFk } from '../utils/errors';
 import { Tache, StatutTache, PrioriteTache } from '../types/entities';
+import { emettreNotification } from '../realtime/socket';
+
+// Forme brute renvoyée par le SELECT final de sp_attribuer_tache -- même
+// remarque que NotificationBrute dans notificationService.ts : `lue` est un
+// TINYINT(1) côté MySQL, à retyper en boolean avant de l'émettre en WS.
+interface NotificationAttribueeBrute {
+  id: number;
+  utilisateur_id: number;
+  tache_id: number;
+  message: string;
+  lue: number;
+  date_creation: Date;
+}
 
 interface CreerTacheInput {
   titre: string;
@@ -99,7 +112,21 @@ export async function attribuerTache(
   }
   const idsConcat = utilisateurIds.join(',');
   try {
-    await pool.query('CALL sp_attribuer_tache(?, ?, ?)', [tacheId, idsConcat, effectuePar]);
+    const [rows]: any = await pool.query('CALL sp_attribuer_tache(?, ?, ?)', [
+      tacheId,
+      idsConcat,
+      effectuePar,
+    ]);
+    const notifications = rows[0] as NotificationAttribueeBrute[];
+    for (const notif of notifications) {
+      emettreNotification(notif.utilisateur_id, {
+        id: notif.id,
+        tache_id: notif.tache_id,
+        message: notif.message,
+        lue: Boolean(notif.lue),
+        date_creation: notif.date_creation,
+      });
+    }
   } catch (err) {
     // La procédure ne vérifie pas l'existence de tacheId avant d'insérer
     // dans tache_utilisateur : un id de tâche inexistant/supprimée casse
